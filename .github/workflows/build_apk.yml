@@ -1,0 +1,39 @@
+name: Build Flutter Release APK
+
+on:
+  push:
+    tags:
+      - 'v*' # Dispara automaticamente sempre que crias e envias uma tag como v1.0.6
+
+jobs:
+  build:
+    name: Build APK for Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.x' # Podes ajustar para a versão do Flutter que estás a usar
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
