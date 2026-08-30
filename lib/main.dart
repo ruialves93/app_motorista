@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:ntp/ntp.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,19 +27,43 @@ class AppRoot extends StatefulWidget {
 class _AppRootState extends State<AppRoot> {
   bool _isLocked = true;
   bool _hasCheckedLock = false;
+  bool _isDeviceCompromised = false;
+  String _securityMessage = '';
 
   @override
   void initState() {
     super.initState();
-    _checkSecurity();
+    _performSecurityAudits();
   }
 
-  Future<void> _checkSecurity() async {
-    final lockEnabled = await AuthService.isLockEnabled();
-    setState(() {
-      _isLocked = lockEnabled;
-      _hasCheckedLock = true;
-    });
+  Future<void> _performSecurityAudits() async {
+    try {
+      try {
+        DateTime networkTime = await NTP.now(timeout: const Duration(seconds: 5));
+        DateTime localTime = DateTime.now();
+        int differenceMinutes = localTime.difference(networkTime).inMinutes.abs();
+
+        if (differenceMinutes > 15) {
+          setState(() {
+            _isDeviceCompromised = true;
+            _securityMessage = 'Erro Antifraude de Segurança: O relógio do sistema do telemóvel foi alterado manualmente (Diferença de $differenceMinutes minutos face à rede oficial). Ajuste a hora do equipamento para automática.';
+            _hasCheckedLock = true;
+          });
+          return;
+        }
+      } catch (_) {}
+
+      final lockEnabled = await AuthService.isLockEnabled();
+      setState(() {
+        _isLocked = lockEnabled;
+        _hasCheckedLock = true;
+      });
+    } catch (e) {
+      setState(() {
+        _isLocked = false;
+        _hasCheckedLock = true;
+      });
+    }
   }
 
   @override
@@ -46,6 +71,36 @@ class _AppRootState extends State<AppRoot> {
     if (!_hasCheckedLock) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
+    if (_isDeviceCompromised) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF1E293B),
+        body: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.gpp_bad, color: Colors.redAccent, size: 64),
+                SizedBox(height: 16),
+                Text(
+                  'Acesso Bloqueado por Segurança',
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Erro Antifraude detetado.',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     if (_isLocked) {
       return LockScreen(onUnlocked: () => setState(() => _isLocked = false));
     }
@@ -189,6 +244,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
     double totalMealsPay = 0;
     double totalDeductions = 0;
     double totalDailyCollectionPay = 0;
+    double sumIntermitencia = 0;
     int folgasCount = 0;
     int monthVacationsCount = 0;
 
@@ -197,6 +253,8 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
     for (var e in entryMap.values) {
       if (e.dayType == 'Folga') folgasCount++;
       if (e.dayType == 'Ferias') monthVacationsCount++;
+
+      sumIntermitencia += e.intermitenciaHours;
 
       if (e.dayType == 'Baixa' || e.dayType == 'Falta') {
         totalDeductions += dailyDeduction;
@@ -257,6 +315,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
       'restWork': totalRestWorkPay,
       'night': totalNightPay,
       'meals': totalMealsPay,
+      'sumIntermitencia': sumIntermitencia,
       'restDaysCount': folgasCount.toDouble(),
       'vacationsMonthCount': monthVacationsCount.toDouble(),
     };
@@ -480,7 +539,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.edit, size: 16),
                     label: Text(entry == null ? 'Registar Serviço' : 'Editar Serviço'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey[900], foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B), foregroundColor: Colors.white),
                     onPressed: () => _openEntryEditor(entry, dStr),
                   ),
                 ),
@@ -582,6 +641,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
                 Text('Horas 50%/75%: +${t['overtime']!.toStringAsFixed(2)} €', style: const TextStyle(fontSize: 11.5)),
                 Text('Desc./Fer. (200%/300%): +${t['restWork']!.toStringAsFixed(2)} €', style: const TextStyle(fontSize: 11.5)),
                 Text('Noturno: +${t['night']!.toStringAsFixed(2)} €', style: const TextStyle(fontSize: 11.5)),
+                Text('Intermitência: ${_formatHours(t['sumIntermitencia'] ?? 0)}', style: const TextStyle(fontSize: 11.5, color: Colors.blueGrey, fontWeight: FontWeight.w600)),
                 Text('Refeições: +${t['meals']!.toStringAsFixed(2)} €', style: const TextStyle(fontSize: 11.5)),
                 if (t['deductions']! > 0)
                   Text('Descontos: -${t['deductions']!.toStringAsFixed(2)} €', style: const TextStyle(fontSize: 11.5, color: Colors.red)),
@@ -867,7 +927,6 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
             },
           ),
           const Divider(),
-          // Bloco do Programador no Final do Menu
           Container(
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
             color: const Color(0xFFF1F5F9),
@@ -922,7 +981,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
               ElevatedButton.icon(
                 icon: const Icon(Icons.sync),
                 label: const Text('Sincronizar Manualmente Agora'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey[900], foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B), foregroundColor: Colors.white),
                 onPressed: () async {
                   Navigator.pop(ctx);
                   final ok = await CloudService.uploadOrReplaceBackupOnDrive();
@@ -945,7 +1004,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
               ElevatedButton.icon(
                 icon: const Icon(Icons.account_circle),
                 label: const Text('Ligar Conta Google Drive'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey[900], foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B), foregroundColor: Colors.white),
                 onPressed: () async {
                   final acc = await CloudService.signInGoogle();
                   if (acc != null) {

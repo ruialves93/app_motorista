@@ -1,0 +1,6 @@
+-keep class io.flutter.app.** { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class io.flutter.util.** { *; }
+-keep class com.google.gson.** { *; }
+-keep class sqflite.** { *; }
+-keep class com.russhwolf.settings.** { *; }

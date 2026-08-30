@@ -2,7 +2,7 @@ name: app_motorista
 description: "App Controlo Horas e Vencimento Motorista"
 publish_to: 'none'
 
-version: 1.0.5+6
+version: 1.0.6+7
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  ntp: ^2.0.0
 
   # Pacotes do Projeto
   local_auth: ^2.3.0
