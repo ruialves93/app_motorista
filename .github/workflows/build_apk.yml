@@ -1,9 +1,9 @@
 name: Build Flutter Release APK
 
-on:
+"on":
 push:
 tags:
-- 'v*'
+- "v*"
 
 jobs:
 build:
@@ -19,40 +19,31 @@ steps:
     uses: actions/setup-java@v5
     with:
       distribution: zulu
-      java-version: '17'
+      java-version: "17"
 
-  - name: Set up Flutter SDK
+  - name: Set up Flutter
     uses: subosito/flutter-action@v2
     with:
-      flutter-version: '3.24.5'
+      flutter-version: "3.24.5"
       cache: true
 
-  - name: Check Flutter and Dart versions
+  - name: Show versions
     run: |
       flutter --version
       dart --version
 
-  - name: Check project configuration
-    run: |
-      echo "===== pubspec.yaml ====="
-      cat pubspec.yaml
-      echo "========================"
-
-  - name: Flutter Clean
-    run: flutter clean
-
-  - name: Install Dependencies
+  - name: Install dependencies
     run: flutter pub get
 
-  - name: Build Release APK
+  - name: Build APK
     run: flutter build apk --release
 
-  - name: Check APK
+  - name: Verify APK
     run: |
-      ls -lh build/app/outputs/flutter-apk/
       test -f build/app/outputs/flutter-apk/app-release.apk
+      ls -lh build/app/outputs/flutter-apk/app-release.apk
 
-  - name: Upload APK Artifact
+  - name: Upload APK
     uses: actions/upload-artifact@v4
     with:
       name: app-release-apk
