@@ -18,7 +18,7 @@ steps:
   - name: Set up Java
     uses: actions/setup-java@v5
     with:
-      distribution: 'zulu'
+      distribution: zulu
       java-version: '17'
 
   - name: Set up Flutter SDK
