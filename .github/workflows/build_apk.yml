@@ -1,39 +1,61 @@
 name: Build Flutter Release APK
 
 on:
-  push:
-    tags:
-      - 'v*'
+push:
+tags:
+- 'v*'
 
 jobs:
-  build:
-    name: Build APK for Android
-    runs-on: ubuntu-latest
+build:
+name: Build APK for Android
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+```
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'zulu'
-          java-version: '17'
+  - name: Set up Java
+    uses: actions/setup-java@v5
+    with:
+      distribution: 'zulu'
+      java-version: '17'
 
-      - name: Set up Flutter SDK
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.6'
-          cache: true
+  - name: Set up Flutter SDK
+    uses: subosito/flutter-action@v2
+    with:
+      flutter-version: '3.24.5'
+      cache: true
 
-      - name: Install Dependencies
-        run: flutter pub get
+  - name: Check Flutter and Dart versions
+    run: |
+      flutter --version
+      dart --version
 
-      - name: Build Release APK
-        run: flutter build apk --release
+  - name: Check project configuration
+    run: |
+      echo "===== pubspec.yaml ====="
+      cat pubspec.yaml
+      echo "========================"
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+  - name: Flutter Clean
+    run: flutter clean
+
+  - name: Install Dependencies
+    run: flutter pub get
+
+  - name: Build Release APK
+    run: flutter build apk --release
+
+  - name: Check APK
+    run: |
+      ls -lh build/app/outputs/flutter-apk/
+      test -f build/app/outputs/flutter-apk/app-release.apk
+
+  - name: Upload APK Artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: app-release-apk
+      path: build/app/outputs/flutter-apk/app-release.apk
+      if-no-files-found: error
+```
