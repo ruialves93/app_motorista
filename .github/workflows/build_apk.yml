@@ -23,22 +23,11 @@ jobs:
       - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.2'
+          flutter-version: '3.29.x' # Versão moderna com suporte total a Gradle atualizado
           cache: true
 
       - name: Install Dependencies
         run: flutter pub get
-
-      - name: FIX Groovy QName Compilation Bug
-        run: |
-          # Encontra o ficheiro flutter.groovy no cache do Flutter e remove a linha incompatível com o novo Groovy
-          GROOVY_FILE=$(find /opt/hostedtoolcache/flutter -name "flutter.groovy" | head -n 1)
-          if [ -f "$GROOVY_FILE" ]; then
-            echo "A corrigir o ficheiro em: $GROOVY_FILE"
-            sed -i '/import groovy.xml.QName/d' "$GROOVY_FILE"
-          else
-            echo "Ficheiro flutter.groovy não encontrado, a ignorar..."
-          fi
 
       - name: Build Release APK
         run: flutter build apk --release
