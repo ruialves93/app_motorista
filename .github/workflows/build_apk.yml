@@ -23,7 +23,7 @@ jobs:
       - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'
+          flutter-version: '3.24.5' # Versão estável com Dart 3.5, totalmente compatível e livre do erro Groovy
           cache: true
 
       - name: Install Dependencies
