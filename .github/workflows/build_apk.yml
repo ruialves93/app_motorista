@@ -23,7 +23,7 @@ jobs:
       - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.16.9' # Versão estável imune ao erro do Groovy
+          flutter-version: '3.19.6'
           cache: true
 
       - name: Install Dependencies
