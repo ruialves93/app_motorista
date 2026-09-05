@@ -136,23 +136,32 @@ class UpdateService {
       );
 
       final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
+      
+      // Valida se a resposta foi bem-sucedida e se o ficheiro tem tamanho de APK (> 1MB)
+      if (response.statusCode == 200 && response.bodyBytes.length > 1000000) {
         final tempDir = await getTemporaryDirectory();
         final file = File('${tempDir.path}/app_motorista_v$version.apk');
         await file.writeAsBytes(response.bodyBytes);
 
-        await OpenFilex.open(file.path);
-      } else {
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        final result = await OpenFilex.open(file.path);
+        
+        // Se o telemóvel não conseguir abrir o instalador diretamente, abre o browser
+        if (result.type != ResultType.done) {
+          _openBrowserFallback(url);
         }
+      } else {
+        // Se falhar a descarga direta ou o link não for um APK válido, abre no browser
+        _openBrowserFallback(url);
       }
     } catch (_) {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+      _openBrowserFallback(url);
+    }
+  }
+
+  static void _openBrowserFallback(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 }
