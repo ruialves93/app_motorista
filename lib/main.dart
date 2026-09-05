@@ -28,7 +28,6 @@ class _AppRootState extends State<AppRoot> {
   bool _isLocked = true;
   bool _hasCheckedLock = false;
   bool _isDeviceCompromised = false;
-  String _securityMessage = '';
 
   @override
   void initState() {
@@ -46,7 +45,6 @@ class _AppRootState extends State<AppRoot> {
         if (differenceMinutes > 15) {
           setState(() {
             _isDeviceCompromised = true;
-            _securityMessage = 'Erro Antifraude de Segurança: O relógio do sistema do telemóvel foi alterado manualmente (Diferença de $differenceMinutes minutos face à rede oficial). Ajuste a hora do equipamento para automática.';
             _hasCheckedLock = true;
           });
           return;
@@ -90,7 +88,7 @@ class _AppRootState extends State<AppRoot> {
                 ),
                 SizedBox(height: 12),
                 Text(
-                  'Erro Antifraude detetado.',
+                  'Erro Antifraude detetado. O relógio do sistema foi alterado manualmente. Ajuste a hora para automática.',
                   style: TextStyle(color: Colors.white70, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
