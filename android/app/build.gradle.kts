@@ -31,14 +31,22 @@ kotlin {
     }
 
     signingConfigs {
-        create("release") {
-            // Caminho absoluto direto com importação limpa de File
-            storeFile = File("C:/Users/ruial/Documents/APK/app_motorista/android/app/my-release-key.jks")
+    create("release") {
+        val keystoreFile = System.getenv("KEYSTORE_FILE")
+
+        if (keystoreFile != null) {
+            storeFile = File(keystoreFile)
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+        } else {
+            storeFile = file("my-release-key.jks")
             storePassword = "password123"
             keyAlias = "my-key-alias"
             keyPassword = "password123"
         }
     }
+}
 
     buildTypes {
         release {
