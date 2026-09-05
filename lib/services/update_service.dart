@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 class UpdateService {
   // Versão atual instalada na aplicação
-  static const String currentVersion = '1.0.5';
+  static const String currentVersion = '1.0.7';
 
   // URL corrigido no GitHub (Raw)
   static const String versionUrl =
