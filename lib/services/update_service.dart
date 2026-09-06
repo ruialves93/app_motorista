@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class UpdateService {
   static const String currentVersion = '1.0.9';
@@ -64,7 +62,7 @@ class UpdateService {
     return false;
   }
 
-  // Pop-up Obrigatório (Sem opção de cancelar)
+  // Pop-up Obrigatório de Atualização
   static void _showForcedUpdateDialog(BuildContext context, String newVersion,
       String apkUrl, String notes) {
     showDialog(
@@ -85,7 +83,7 @@ class UpdateService {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Existe uma nova versão obrigatória disponível para garantir a conformidade e estabilidade.',
+                'Existe uma nova versão obrigatória disponível. Para continuar a utilizar a aplicação, efetue a atualização.',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 10),
@@ -103,70 +101,28 @@ class UpdateService {
               ),
               onPressed: () async {
                 Navigator.pop(ctx);
-                _downloadAndInstallApk(context, apkUrl, newVersion);
+                
+                // Abre o link diretamente no browser externo do telemóvel
+                final uri = Uri.parse(apkUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Não foi possível abrir o link de atualização.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
-              child: const Text('Descarregar e Atualizar Agora',
+              child: const Text('Atualizar no Browser Agora',
                   style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
       ),
     );
-  }
-
-  // Faz o download direto e abre o instalador do APK de forma imediata
-  static Future<void> _downloadAndInstallApk(
-      BuildContext context, String url, String version) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Expanded(
-                child: Text('A descarregar a atualização... Por favor aguarde.'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    try {
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200 && response.bodyBytes.length > 1000000) {
-        final tempDir = await getTemporaryDirectory();
-        final file = File('${tempDir.path}/app_motorista_v$version.apk');
-        await file.writeAsBytes(response.bodyBytes);
-
-        if (context.mounted) {
-          Navigator.pop(context); // Fecha o loading
-        }
-
-        // Abre o instalador do APK nativamente
-        await OpenFilex.open(file.path);
-      } else {
-        if (context.mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Erro ao transferir o ficheiro da atualização.'),
-                backgroundColor: Colors.red),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
   }
 }
