@@ -1,9 +1,5 @@
 {
   "version": "1.0.9",
   "apk_url": "https://github.com/ruialves93/app_motorista/releases/download/v1.0.9/app-release.apk",
-  "release_notes": "• Atualização para a versão 1.0.9."
-<<<<<<< HEAD
+  "release_notes": "Atualizacao para a versao 1.0.9 com abertura automatica no browser."
 }
-=======
-}
->>>>>>> 3beea1d272542bfc5f28f02421597b9dc3bd50dd
