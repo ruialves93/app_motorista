@@ -760,34 +760,6 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
               }
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.cloud_upload, color: Colors.blue),
-            title: const Text('Guardar no OneDrive'),
-            subtitle: const Text('Exportar e enviar direto para o OneDrive'),
-            onTap: () async {
-              Navigator.pop(context);
-              await ExportService.exportOneDriveBackup();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.cloud_download, color: Colors.blueAccent),
-            title: const Text('Restaurar do OneDrive'),
-            subtitle: const Text('Selecionar ficheiro a partir do OneDrive'),
-            onTap: () async {
-              Navigator.pop(context);
-              final ok = await ExportService.importOneDriveBackup();
-              if (ok) {
-                await _loadGlobalPreferences();
-                await _loadMonthRatesAndEntries();
-                _triggerAutoCloudSync();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Dados restaurados do OneDrive com sucesso!'), backgroundColor: Colors.teal),
-                  );
-                }
-              }
-            },
-          ),
           const Divider(),
           const Padding(
             padding: EdgeInsets.only(left: 16, top: 4, bottom: 4),
@@ -920,6 +892,15 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
           ),
           const Divider(),
           ListTile(
+            leading: const Icon(Icons.help_outline, color: Colors.blue),
+            title: const Text('Manual do Utilizador'),
+            subtitle: const Text('Guia detalhado de funcionamento (PDF)'),
+            onTap: () async {
+              Navigator.pop(context);
+              await ExportService.exportUserManualPDF(context);
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.system_update, color: Colors.teal),
             title: const Text('Procurar Atualizações'),
             subtitle: Text('Versão instalada: v${UpdateService.currentVersion}'),
@@ -931,7 +912,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
           ListTile(
             leading: const Icon(Icons.share_rounded, color: Colors.teal),
             title: const Text('Recomendar a um Colega'),
-            subtitle: const Text('Partilhar aplicação via WhatsApp ou SMS'),
+            subtitle: const Text('Partilhar link público de instalação'),
             onTap: () async {
               Navigator.pop(context);
               await ExportService.shareAppRecommendation();

@@ -1777,53 +1777,202 @@ class ExportService {
   }
 
   // ==========================================
-  // 7. BACKUP & RESTAURO VIA ONEDRIVE (NATIVO)
+  // 7. MANUAL DO UTILIZADOR (PDF)
   // ==========================================
-  static Future<void> exportOneDriveBackup() async {
-    final entries = await DBHelper.instance.getAllEntries();
-    final data = jsonEncode(entries.map((e) => e.toMap()).toList());
+  static Future<Uint8List> _generateUserManualBytes({
+    required String generationFormattedDate,
+  }) async {
+    final fontRegular = await PdfGoogleFonts.robotoRegular();
+    final fontBold = await PdfGoogleFonts.robotoBold();
+    final fontMedium = await PdfGoogleFonts.robotoMedium();
+    final fontItalic = await PdfGoogleFonts.robotoItalic();
 
+    final logo = await _loadLogoProvider();
+
+    final pdf = pw.Document(
+      title: 'Manual do Utilizador - CCTV Motorista',
+      author: 'Rui Barata - CCTV Motorista',
+      creator: 'CCTV Motorista App (BTE 29/2022)',
+      subject: 'Manual Técnico e Funcional da Aplicação CCTV Motorista',
+      theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold, italic: fontItalic),
+    );
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (context) => [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Row(
+                children: [
+                  if (logo != null)
+                    pw.Container(width: 42, height: 42, margin: const pw.EdgeInsets.only(right: 10), child: pw.Image(logo)),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('CCTV MOTORISTA', style: pw.TextStyle(font: fontBold, fontSize: 14, color: PdfColors.blueGrey900)),
+                      pw.Text('Enquadramento BTE 29/2022 (ANTROP)', style: pw.TextStyle(font: fontRegular, fontSize: 8.5, color: PdfColors.teal800)),
+                    ],
+                  ),
+                ],
+              ),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text('MANUAL DO UTILIZADOR', style: pw.TextStyle(font: fontBold, fontSize: 11, color: PdfColors.blueGrey800)),
+                  pw.Text('Versão 1.0.8', style: pw.TextStyle(font: fontMedium, fontSize: 8, color: PdfColors.grey700)),
+                ],
+              ),
+            ],
+          ),
+          pw.Divider(thickness: 1, color: PdfColors.blueGrey800),
+          pw.SizedBox(height: 10),
+          pw.Text('1. Introdução à Aplicação', style: pw.TextStyle(font: fontBold, fontSize: 11, color: PdfColors.teal900)),
+          pw.SizedBox(height: 4),
+          pw.Paragraph(
+            text: 'A aplicação *CCTV Motorista* foi desenvolvida para apoiar os profissionais do setor no controlo rigoroso de horários, turnos, intermitências, horas extraordinárias, trabalho noturno e cálculo de vencimentos, estritamente de acordo com o Contrato Coletivo de Trabalho (CCTV) para as empresas de transporte de passageiros em autocarro (ANTROP – BTE 29/2022).',
+            style: pw.TextStyle(font: fontRegular, fontSize: 9, color: PdfColors.grey800),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text('2. Gestão do Calendário e Registos Diários', style: pw.TextStyle(font: fontBold, fontSize: 11, color: PdfColors.teal900)),
+          pw.SizedBox(height: 4),
+          pw.Paragraph(
+            text: '• **Seleção de Dias:** Ao tocar em qualquer dia no calendário mensal, podes consultar os dados gravados ou registar um novo serviço.\n'
+                '• **Tipos de Serviço:** Podes classificar o dia como *Dia Útil*, *Folga (Descanso Gozado)*, *Férias*, *Descanso (Trabalho na Folga)*, *Feriado*, *Baixa Médica* ou *Falta*.\n'
+                '• **Horários e Intermitências:** Regista a hora de início e fim do serviço, bem como até duas intermitências (com validação automática de mínimos legais de 1 hora e tetos máximos).\n'
+                '• **Cobrança de Bilhetes:** Para o regime de Comercial / Turismo, podes ativar a opção de cobrança diária para o cálculo automático do acréscimo legal de 20% sobre 8 horas.',
+            style: pw.TextStyle(font: fontRegular, fontSize: 9, color: PdfColors.grey800),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text('3. Relatórios e Exportação de Documentos', style: pw.TextStyle(font: fontBold, fontSize: 11, color: PdfColors.teal900)),
+          pw.SizedBox(height: 4),
+          pw.Paragraph(
+            text: 'O menu lateral disponibiliza ferramentas avançadas de exportação formatadas para auditoria e entrega à entidade patronal:\n'
+                '• **Salário Mensal PDF:** Folha de serviço completa em paisagem com todos os cálculos detalhados e linha de assinatura.\n'
+                '• **Salário Mensal Excel (.xlsx):** Tabela editável com fórmulas integradas para análise aprofundada.\n'
+                '• **Registo de Viaturas:** Mapa de controlo de frota e matrículas associadas aos turnos.\n'
+                '• **Mapa Anual de Férias:** Calendário visual de 12 meses com contagem automática de dias gozados.\n'
+                '• **Valores de Referência:** Tabela com fórmulas de cálculo salarial (VH Normal, VH Rest, acréscimos noturnos e subsídios).',
+            style: pw.TextStyle(font: fontRegular, fontSize: 9, color: PdfColors.grey800),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text('4. Sincronização, Backup e Atualizações', style: pw.TextStyle(font: fontBold, fontSize: 11, color: PdfColors.teal900)),
+          pw.SizedBox(height: 4),
+          pw.Paragraph(
+            text: '• **Google Drive:** Permite ligar a tua conta para sincronização automática dos dados em tempo real.\n'
+                '• **Backup Local (JSON):** Podes exportar ou importar cópias de segurança locais para migração entre equipamentos.\n'
+                '• **Atualizações Automáticas:** A aplicação verifica periodicamente se existe uma nova versão no GitHub, descarregando e preparando a instalação imediata do novo APK de forma segura.',
+            style: pw.TextStyle(font: fontRegular, fontSize: 9, color: PdfColors.grey800),
+          ),
+          pw.Spacer(),
+          pw.Divider(thickness: 0.5, color: PdfColors.grey400),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Desenvolvido por Rui Barata © 2026 | Suporte Técnico e Enquadramento BTE 29/2022',
+                  style: pw.TextStyle(font: fontRegular, fontSize: 7, color: PdfColors.grey700)),
+              pw.Text('Gerado em: $generationFormattedDate',
+                  style: pw.TextStyle(font: fontItalic, fontSize: 7, color: PdfColors.grey600)),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static Future<void> exportUserManualPDF(BuildContext context) async {
     final now = DateTime.now();
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(now);
-    final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/CCTV_Motorista_OneDrive_Backup_$timestamp.json');
-    await file.writeAsString(data);
+    final generationDate = DateFormat('dd/MM/yyyy HH:mm:ss').format(now);
+    final fileName = 'Manual_Utilizador_CCTV_Motorista_$timestamp.pdf';
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Backup CCTV Motorista (Selecione o OneDrive para guardar)',
-      subject: 'Backup OneDrive - CCTV Motorista',
-    );
-  }
+    try {
+      final pdfBytes = await _generateUserManualBytes(generationFormattedDate: generationDate);
 
-  static Future<bool> importOneDriveBackup() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
+      if (!context.mounted) return;
 
-    if (result != null && result.files.single.path != null) {
-      final file = File(result.files.single.path!);
-      final content = await file.readAsString();
-      final List<dynamic> jsonList = jsonDecode(content);
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+        builder: (ctx) => SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.visibility, color: Colors.blueGrey),
+                title: const Text('Visualizar / Imprimir Manual', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Pré-visualização direta do documento'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await _openPdfWithFallback(context, pdfBytes, fileName);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.download_for_offline, color: Colors.teal),
+                title: const Text('Descarregar / Guardar PDF', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Guardar o manual no telemóvel'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final savePath = await FilePicker.platform.saveFile(
+                    dialogTitle: 'Guardar Manual do Utilizador',
+                    fileName: fileName,
+                    type: FileType.custom,
+                    allowedExtensions: ['pdf'],
+                    bytes: pdfBytes,
+                  );
 
-      for (var item in jsonList) {
-        final entry = DriverEntry.fromMap(item as Map<String, dynamic>);
-        await DBHelper.instance.insertOrUpdate(entry);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(savePath != null ? 'Manual guardado com sucesso!' : 'Operação cancelada.'),
+                        backgroundColor: Colors.teal[800],
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share, color: Colors.indigo),
+                title: const Text('Partilhar Manual', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Enviar via WhatsApp ou E-mail'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final tempDir = await getTemporaryDirectory();
+                  final file = File('${tempDir.path}/$fileName');
+                  await file.writeAsBytes(pdfBytes);
+
+                  await Share.shareXFiles(
+                    [XFile(file.path)],
+                    text: 'Manual do Utilizador - Aplicação CCTV Motorista',
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao gerar manual: $e'), backgroundColor: Colors.red[800]),
+        );
       }
-      return true;
     }
-    return false;
   }
 
   // ==========================================
-  // 8. RECOMENDAR APLICAÇÃO A OUTROS
+  // 8. RECOMENDAR APLICAÇÃO A OUTROS (LINK PÚBLICO DIRETO)
   // ==========================================
   static Future<void> shareAppRecommendation() async {
+    const String directDownloadUrl = 'https://github.com/ruialves93/app_motorista/releases/latest/download/app-release.apk';
+
     const String shareText = 
         'Olá! Estou a utilizar a aplicação *CCTV Motorista* para gestão de horários, turnos, vencimentos e relatórios em conformidade com o BTE 29/2022 (ANTROP).\n\n'
-        'Podes descarregar a aplicação aqui:\n'
-        'https://github.com/ruialves93/app_motorista/releases/latest';
+        'Podes descarregar e instalar a aplicação diretamente através deste link público:\n'
+        '$directDownloadUrl';
 
     await Share.share(
       shareText,
