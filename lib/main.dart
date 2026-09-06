@@ -760,6 +760,34 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
               }
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.cloud_upload, color: Colors.blue),
+            title: const Text('Guardar no OneDrive'),
+            subtitle: const Text('Exportar e enviar direto para o OneDrive'),
+            onTap: () async {
+              Navigator.pop(context);
+              await ExportService.exportOneDriveBackup();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud_download, color: Colors.blueAccent),
+            title: const Text('Restaurar do OneDrive'),
+            subtitle: const Text('Selecionar ficheiro a partir do OneDrive'),
+            onTap: () async {
+              Navigator.pop(context);
+              final ok = await ExportService.importOneDriveBackup();
+              if (ok) {
+                await _loadGlobalPreferences();
+                await _loadMonthRatesAndEntries();
+                _triggerAutoCloudSync();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Dados restaurados do OneDrive com sucesso!'), backgroundColor: Colors.teal),
+                  );
+                }
+              }
+            },
+          ),
           const Divider(),
           const Padding(
             padding: EdgeInsets.only(left: 16, top: 4, bottom: 4),
@@ -767,7 +795,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
           ),
           ListTile(
             leading: const Icon(Icons.flight_takeoff, color: Colors.teal),
-            title: const Text('Mapa Anual de Férias (PDF)'),
+            title: const Text('Mapa Anual de Férias'),
             subtitle: Text('Calendário anual completo ($annualVacationDays dias gozados)'),
             onTap: () async {
               Navigator.pop(context);
@@ -786,7 +814,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
           ),
           ListTile(
             leading: const Icon(Icons.assessment, color: Colors.indigo),
-            title: const Text('Exportar Valores de Referência'),
+            title: const Text('Valores de Referência'),
             subtitle: const Text('PDF com Vencimento, Descansos, etc.'),
             onTap: () {
               Navigator.pop(context);
@@ -806,7 +834,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
           ),
           ListTile(
             leading: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
-            title: const Text('Visualizar / Exportar PDF'),
+            title: const Text('Salário Mensal PDF'),
             subtitle: const Text('Folha de Serviço e Vencimentos'),
             onTap: () {
               Navigator.pop(context);
@@ -855,7 +883,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
           ),
           ListTile(
             leading: const Icon(Icons.directions_bus, color: Colors.blueAccent),
-            title: const Text('PDF Registo de Viaturas'),
+            title: const Text('Registo de Viaturas'),
             subtitle: const Text('Mapa de frota e horários'),
             onTap: () {
               Navigator.pop(context);
@@ -872,7 +900,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
           ),
           ListTile(
             leading: const Icon(Icons.table_view, color: Colors.green),
-            title: const Text('Exportar Excel (.xlsx)'),
+            title: const Text('Salário Mensal Excel'),
             subtitle: const Text('Tabela detalhada com fórmulas'),
             onTap: () {
               Navigator.pop(context);
@@ -898,6 +926,15 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
             onTap: () {
               Navigator.pop(context);
               UpdateService.checkForUpdates(context, showNoUpdateMessage: true);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.share_rounded, color: Colors.teal),
+            title: const Text('Recomendar a um Colega'),
+            subtitle: const Text('Partilhar aplicação via WhatsApp ou SMS'),
+            onTap: () async {
+              Navigator.pop(context);
+              await ExportService.shareAppRecommendation();
             },
           ),
           ListTile(

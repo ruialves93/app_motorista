@@ -41,6 +41,31 @@ class ExportService {
     }
   }
 
+  static Future<void> _openPdfWithFallback(BuildContext context, Uint8List pdfBytes, String fileName) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsBytes(pdfBytes);
+
+      final result = await OpenFilex.open(file.path);
+      if (result.type == ResultType.noAppToOpen && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi encontrada nenhuma aplicação para abrir PDFs. Por favor, instale um leitor de PDF.'),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao abrir PDF: $e'), backgroundColor: Colors.red[800]),
+        );
+      }
+    }
+  }
+
   static Map<String, dynamic> _calcDayRow(
     DriverEntry e,
     double vhNormal,
@@ -519,7 +544,7 @@ class ExportService {
               subtitle: const Text('Pré-visualização e impressão direta'),
               onTap: () async {
                 Navigator.pop(ctx);
-                await Printing.layoutPdf(onLayout: (_) async => pdfBytes, name: fileName);
+                await _openPdfWithFallback(context, pdfBytes, fileName);
               },
             ),
             ListTile(
@@ -570,7 +595,7 @@ class ExportService {
   }
 
   // ==========================================
-  // 2. EXPORTAR EXCEL (.XLSX) COM HORAS E VALORES (€)
+  // 2. EXPORTAR EXCEL (.XLSX)
   // ==========================================
   static Future<Uint8List> _generateExcelBytes({
     required String periodTitle,
@@ -1042,7 +1067,7 @@ class ExportService {
               subtitle: const Text('Pré-visualização e impressão direta'),
               onTap: () async {
                 Navigator.pop(ctx);
-                await Printing.layoutPdf(onLayout: (_) async => pdfBytes, name: fileName);
+                await _openPdfWithFallback(context, pdfBytes, fileName);
               },
             ),
             ListTile(
@@ -1137,7 +1162,6 @@ class ExportService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         build: (context) => [
-          // Cabeçalho Institucional
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1173,8 +1197,6 @@ class ExportService {
           pw.SizedBox(height: 10),
           pw.Divider(thickness: 0.8, color: PdfColors.teal800),
           pw.SizedBox(height: 8),
-
-          // Tabela de Dados
           pw.Table.fromTextArray(
             headers: ['Data', 'Viatura / Frota', 'Tipo Serviço', 'Início', 'Fim', 'Trabalho Efetivo', 'Intermitência'],
             data: tableData,
@@ -1187,8 +1209,6 @@ class ExportService {
             cellPadding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
           ),
           pw.SizedBox(height: 14),
-
-          // Rodapé com autoria, carimbo e assinatura
           pw.Divider(thickness: 0.5, color: PdfColors.grey400),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -1204,7 +1224,7 @@ class ExportService {
                   pw.Text('Desenvolvido por: Rui Barata © 2026 | Enquadramento BTE 29/2022',
                       style: pw.TextStyle(font: fontRegular, fontSize: 6.4, color: PdfColors.grey700)),
                   pw.Text('Gerado em: $generationFormattedDate',
-                        style: pw.TextStyle(font: fontItalic, fontSize: 6.4, color: PdfColors.grey600)),
+                      style: pw.TextStyle(font: fontItalic, fontSize: 6.4, color: PdfColors.grey600)),
                 ],
               ),
               pw.Column(
@@ -1251,8 +1271,8 @@ class ExportService {
           ),
           content: Text(
             driverName.trim().isEmpty
-                ? 'É obrigatório definir o Nome do Motorista antes de gerar o Mapa de Viaturas.'
-                : 'É obrigatório definir o Nome da Empresa antes de gerar o Mapa de Viaturas.',
+                ? 'É obrigatório definir o Nome do Motorista antes de gerar o Registo de Viaturas.'
+                : 'É obrigatório definir o Nome da Empresa antes de gerar o Registo de Viaturas.',
           ),
           actions: [
             TextButton(
@@ -1272,7 +1292,7 @@ class ExportService {
 
       final cleanDriver = driverName.trim().replaceAll(' ', '_');
       final cleanPeriod = periodTitle.replaceAll('/', '_');
-      final fileName = 'Mapa_Viaturas_${cleanDriver}_${cleanPeriod}_$timestampForFileName.pdf';
+      final fileName = 'Registo_Viaturas_${cleanDriver}_${cleanPeriod}_$timestampForFileName.pdf';
 
       final pdfBytes = await _generateVehiclePdfBytes(
         periodTitle: periodTitle,
@@ -1294,11 +1314,11 @@ class ExportService {
             children: [
               ListTile(
                 leading: const Icon(Icons.visibility, color: Colors.blueGrey),
-                title: const Text('Visualizar e Imprimir Mapa de Viaturas', style: TextStyle(fontWeight: FontWeight.bold)),
+                title: const Text('Visualizar e Imprimir Registo de Viaturas', style: TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: const Text('Pré-visualização e impressão direta'),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  await Printing.layoutPdf(onLayout: (_) async => pdfBytes, name: fileName);
+                  await _openPdfWithFallback(context, pdfBytes, fileName);
                 },
               ),
               ListTile(
@@ -1312,7 +1332,7 @@ class ExportService {
                   await file.writeAsBytes(pdfBytes);
 
                   final savePath = await FilePicker.platform.saveFile(
-                    dialogTitle: 'Escolha onde guardar o Mapa de Viaturas',
+                    dialogTitle: 'Escolha onde guardar o Registo de Viaturas',
                     fileName: fileName,
                     type: FileType.custom,
                     allowedExtensions: ['pdf'],
@@ -1322,7 +1342,7 @@ class ExportService {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(savePath != null ? 'Mapa de Viaturas guardado com sucesso!' : 'Ficheiro guardado em: ${file.path}'),
+                        content: Text(savePath != null ? 'Registo de Viaturas guardado com sucesso!' : 'Ficheiro guardado em: ${file.path}'),
                         backgroundColor: Colors.teal[800],
                       ),
                     );
@@ -1331,7 +1351,7 @@ class ExportService {
               ),
               ListTile(
                 leading: const Icon(Icons.share, color: Colors.indigo),
-                title: const Text('Partilhar Mapa de Viaturas (PDF)', style: TextStyle(fontWeight: FontWeight.bold)),
+                title: const Text('Partilhar Registo de Viaturas (PDF)', style: TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: const Text('Enviar via WhatsApp, E-mail ou Drive'),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -1341,7 +1361,7 @@ class ExportService {
 
                   await Share.shareXFiles(
                     [XFile(file.path)],
-                    text: 'Mapa de Controlo de Viaturas - $driverName ($periodTitle)',
+                    text: 'Registo de Viaturas - $driverName ($periodTitle)',
                   );
                 },
               ),
@@ -1353,7 +1373,7 @@ class ExportService {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao gerar Mapa de Viaturas: $e'),
+            content: Text('Erro ao gerar Registo de Viaturas: $e'),
             backgroundColor: Colors.red[800],
           ),
         );
@@ -1362,7 +1382,7 @@ class ExportService {
   }
 
   // ==========================================
-  // 5. MAPA ANUAL DE FÉRIAS (PDF) - CÉLULAS AMPLIADAS E VISÍVEIS
+  // 5. MAPA ANUAL DE FÉRIAS (PDF)
   // ==========================================
   static Future<Uint8List> _generateVacationsCalendarBytes({
     required int year,
@@ -1402,7 +1422,6 @@ class ExportService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Cabeçalho
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1464,8 +1483,6 @@ class ExportService {
               pw.SizedBox(height: 6),
               pw.Divider(thickness: 0.8, color: PdfColors.teal800),
               pw.SizedBox(height: 4),
-
-              // Grelha com Dias do Mês Ampliados (19x19 px com números a 9.5pt negrito)
               pw.Expanded(
                 child: pw.GridView(
                   crossAxisCount: 4,
@@ -1549,11 +1566,8 @@ class ExportService {
                   }),
                 ),
               ),
-
               pw.SizedBox(height: 4),
               pw.Divider(thickness: 0.5, color: PdfColors.grey400),
-
-              // Rodapé
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -1669,7 +1683,7 @@ class ExportService {
                 subtitle: const Text('Pré-visualização e impressão direta'),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  await Printing.layoutPdf(onLayout: (_) async => pdfBytes, name: fileName);
+                  await _openPdfWithFallback(context, pdfBytes, fileName);
                 },
               ),
               ListTile(
@@ -1760,5 +1774,60 @@ class ExportService {
       return true;
     }
     return false;
+  }
+
+  // ==========================================
+  // 7. BACKUP & RESTAURO VIA ONEDRIVE (NATIVO)
+  // ==========================================
+  static Future<void> exportOneDriveBackup() async {
+    final entries = await DBHelper.instance.getAllEntries();
+    final data = jsonEncode(entries.map((e) => e.toMap()).toList());
+
+    final now = DateTime.now();
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(now);
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/CCTV_Motorista_OneDrive_Backup_$timestamp.json');
+    await file.writeAsString(data);
+
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Backup CCTV Motorista (Selecione o OneDrive para guardar)',
+      subject: 'Backup OneDrive - CCTV Motorista',
+    );
+  }
+
+  static Future<bool> importOneDriveBackup() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final file = File(result.files.single.path!);
+      final content = await file.readAsString();
+      final List<dynamic> jsonList = jsonDecode(content);
+
+      for (var item in jsonList) {
+        final entry = DriverEntry.fromMap(item as Map<String, dynamic>);
+        await DBHelper.instance.insertOrUpdate(entry);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // ==========================================
+  // 8. RECOMENDAR APLICAÇÃO A OUTROS
+  // ==========================================
+  static Future<void> shareAppRecommendation() async {
+    const String shareText = 
+        'Olá! Estou a utilizar a aplicação *CCTV Motorista* para gestão de horários, turnos, vencimentos e relatórios em conformidade com o BTE 29/2022 (ANTROP).\n\n'
+        'Podes descarregar a aplicação aqui:\n'
+        'https://github.com/ruialves93/app_motorista/releases/latest';
+
+    await Share.share(
+      shareText,
+      subject: 'Recomendação: Aplicação CCTV Motorista',
+    );
   }
 }
