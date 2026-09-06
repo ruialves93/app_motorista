@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 
 class UpdateService {
   static const String currentVersion = '1.0.9';
@@ -62,7 +64,7 @@ class UpdateService {
     return false;
   }
 
-  // Pop-up Obrigatório de Atualização
+  // Pop-up Obrigatório (Bloqueia o ecrã até atualizar)
   static void _showForcedUpdateDialog(BuildContext context, String newVersion,
       String apkUrl, String notes) {
     showDialog(
@@ -83,7 +85,7 @@ class UpdateService {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Existe uma nova versão obrigatória disponível. Para continuar a utilizar a aplicação, efetue a atualização.',
+                'Existe uma nova versão obrigatória. A aplicação vai proceder à transferência e instalação automática.',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 10),
@@ -101,28 +103,90 @@ class UpdateService {
               ),
               onPressed: () async {
                 Navigator.pop(ctx);
-                
-                // Abre o link diretamente no browser externo do telemóvel
-                final uri = Uri.parse(apkUrl);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                } else {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Não foi possível abrir o link de atualização.'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
+                _downloadAndInstallAutomatically(context, apkUrl, newVersion);
               },
-              child: const Text('Atualizar no Browser Agora',
+              child: const Text('Atualizar Automaticamente',
                   style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // Faz o download direto seguindo redirecionamentos do GitHub e força a instalação
+  static Future<void> _downloadAndInstallAutomatically(
+      BuildContext context, String url, String version) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Expanded(
+                child: Text('A descarregar atualização em segundo plano...'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      var client = http.Client();
+      var request = http.Request('GET', Uri.parse(url));
+      var streamedResponse = await client.send(request);
+
+      if (streamedResponse.statusCode == 200 || streamedResponse.statusCode == 302) {
+        final response = await http.Response.fromStream(streamedResponse);
+        
+        Directory? targetDir;
+        if (Platform.isAndroid) {
+          targetDir = await getExternalStorageDirectory();
+        }
+        targetDir ??= await getTemporaryDirectory();
+
+        final filePath = '${targetDir.path}/app_motorista_v$version.apk';
+        final file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+
+        if (context.mounted) {
+          Navigator.pop(context); // Fecha o pop-up de loading
+        }
+
+        final result = await OpenFilex.open(filePath);
+
+        if (result.type != ResultType.done && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Por favor, permita a instalação nas definições: ${result.message}'),
+              backgroundColor: Colors.orange[800],
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Falha ao comunicar com o servidor de atualizações.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro no processo: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }
