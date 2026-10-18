@@ -21,6 +21,14 @@ import CryptoKit
       // Establishing the ubiquity container can block; never do it on the UI thread.
       self.iCloudQueue.async {
         do {
+          if call.method == "accountInfo" {
+            let hasAccount = try self.iCloudIdentity() != nil
+            let hasStorage = hasAccount && FileManager.default.url(
+              forUbiquityContainerIdentifier: "iCloud.com.ruibarata.cctvmotorista"
+            ) != nil
+            DispatchQueue.main.async { result(["hasAccount": hasAccount, "hasStorage": hasStorage]) }
+            return
+          }
           guard let identity = try self.iCloudIdentity() else {
             DispatchQueue.main.async { result(FlutterError(
               code: "icloud_account_unavailable",

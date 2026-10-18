@@ -20,6 +20,13 @@ class ICloudService {
 
   static Future<String?> account() => channel.invokeMethod<String>('account');
 
+  static Future<String> accountDescription() async {
+    final info = await channel.invokeMapMethod<String, dynamic>('accountInfo');
+    if (info?['hasAccount'] != true) return 'Nenhuma conta com iCloud Drive ativo.';
+    if (info?['hasStorage'] != true) return 'Conta iCloud detetada; a pasta da aplicação ainda não está disponível.';
+    return 'Conta Apple deste iPhone — iCloud Drive ativo.';
+  }
+
   static Future<String> backupStatus() async {
     final identity = await account();
     if (identity == null) return 'O iCloud Drive não está disponível nesta sessão.';

@@ -7,6 +7,15 @@ void main() {
   final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   tearDown(() => messenger.setMockMethodCallHandler(ICloudService.channel, null));
 
+  test('Account display distinguishes an active account from unavailable storage', () async {
+    var hasStorage = false;
+    messenger.setMockMethodCallHandler(ICloudService.channel, (call) async =>
+      {'hasAccount': true, 'hasStorage': hasStorage});
+    expect(await ICloudService.accountDescription(), contains('ainda não está disponível'));
+    hasStorage = true;
+    expect(await ICloudService.accountDescription(), contains('iCloud Drive ativo'));
+  });
+
   test('Only an uploaded backup is reported as confirmed in iCloud', () async {
     var uploaded = false;
     messenger.setMockMethodCallHandler(ICloudService.channel, (call) async {

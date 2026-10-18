@@ -12,6 +12,22 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
   bool _busy = false;
   String _message = 'Utiliza a conta iCloud das Definições do iPhone. Ative o iCloud Drive para guardar os seus registos e definições.';
   bool _error = false;
+  String _account = 'A verificar a conta iCloud…';
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshAccount();
+  }
+
+  Future<void> _refreshAccount() async {
+    try {
+      final description = await ICloudService.accountDescription();
+      if (mounted) setState(() => _account = description);
+    } catch (_) {
+      if (mounted) setState(() => _account = 'Não foi possível verificar a conta iCloud.');
+    }
+  }
 
   Future<void> _run(Future<void> Function() action, String message) async {
     setState(() {
@@ -32,6 +48,7 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
         });
       }
     } finally {
+      await _refreshAccount();
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -64,6 +81,13 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
     child: AlertDialog(
       title: const Text('Cópia de segurança iCloud'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.account_circle, color: Colors.blueGrey, size: 32),
+        const SizedBox(height: 8),
+        Text(_account, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        const Text('O e-mail não é disponibilizado à aplicação. Consulte a conta em Definições > Conta Apple.',
+          style: TextStyle(fontSize: 12)),
+        const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
