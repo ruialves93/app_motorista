@@ -10,7 +10,7 @@ class ICloudBackupDialog extends StatefulWidget {
 
 class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
   bool _busy = false;
-  String _message = 'Utiliza a conta iCloud das Definições do iPhone. Ative o iCloud Drive para guardar os seus registos e definições.';
+  String _message = 'Toque em Guardar em Ficheiros, escolha iCloud Drive, selecione uma pasta e confirme em Guardar. Assim pode localizar o ficheiro no iCloud Drive.';
   bool _error = false;
   bool _success = false;
   String _account = 'A verificar a conta iCloud…';
@@ -23,7 +23,7 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
 
   Future<void> _refreshAccount() async {
     try {
-      final description = await ICloudService.accountDescription();
+      final description = await ICloudService.accountDescription().timeout(const Duration(seconds: 8));
       if (mounted) setState(() => _account = description);
     } catch (_) {
       if (mounted) setState(() => _account = 'Não foi possível verificar a conta iCloud.');
@@ -35,7 +35,7 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
       _busy = true;
       _error = false;
       _success = false;
-      _message = 'A comunicar com o iCloud…';
+      _message = 'A processar a cópia de segurança…';
     });
     try {
       await action();
@@ -50,10 +50,21 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
         });
       }
     } finally {
-      await _refreshAccount();
       if (mounted) setState(() => _busy = false);
+      _refreshAccount();
     }
   }
+
+  Future<void> _saveViaFiles() => _run(() async {
+    final path = await ICloudService.saveViaFiles();
+    if (mounted) {
+      setState(() {
+        _success = path != null;
+        _message = path == null ? 'Operação cancelada. Não foi exportada uma cópia.'
+            : 'Cópia de segurança exportada com sucesso para a pasta escolhida em Ficheiros. Se escolheu iCloud Drive, o iOS gere o envio. Confirme o ficheiro nessa pasta.';
+      });
+    }
+  }, '');
 
   Future<void> _checkStatus({bool save = false}) async {
     await _run(() async {
@@ -68,7 +79,7 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
     }, '');
   }
 
-  Future<void> _restore() async {
+  Future<void> _restore({bool viaFiles = false}) async {
     final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: const Text('Recuperar do iCloud?'),
       content: const Text('Os registos das mesmas datas e as definições serão substituídos pelos da cópia. Os restantes dias serão mantidos.'),
@@ -78,7 +89,16 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
       ],
     ));
     if (confirmed == true && mounted) {
-      await _run(ICloudService.restore, 'Cópia recuperada. Feche esta janela para atualizar os registos.');
+      await _run(() async {
+        final restored = viaFiles ? await ICloudService.restoreViaFiles() : await ICloudService.restore().then((_) => true);
+        if (mounted) {
+          setState(() {
+            _success = restored;
+            _message = restored ? 'Cópia recuperada com sucesso. Feche esta janela para atualizar os registos.'
+                : 'Operação cancelada. Os registos não foram alterados.';
+          });
+        }
+      }, '');
     }
   }
 
@@ -114,14 +134,19 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
           child: Column(children: [CircularProgressIndicator(), SizedBox(height: 8), Text('Aguarde…')]),
         ),
         ElevatedButton.icon(
-          onPressed: _busy ? null : () => _checkStatus(save: true),
-          icon: const Icon(Icons.cloud_upload), label: const Text('Guardar no iCloud'),
+          onPressed: _busy ? null : _saveViaFiles,
+          icon: const Icon(Icons.save_alt), label: const Text('Guardar em Ficheiros'),
         ),
-        TextButton.icon(onPressed: _busy ? null : () => _checkStatus(),
-          icon: const Icon(Icons.refresh), label: const Text('Verificar envio')),
-        TextButton.icon(onPressed: _busy ? null : _restore,
-          icon: const Icon(Icons.cloud_download), label: const Text('Recuperar do iCloud')),
-        const Text('Guarde uma nova cópia depois de alterar os registos. A cópia anterior será substituída.',
+        TextButton.icon(onPressed: _busy ? null : () => _restore(viaFiles: true),
+          icon: const Icon(Icons.folder_open), label: const Text('Recuperar de Ficheiros')),
+        ExpansionTile(title: const Text('Pasta iCloud da aplicação'),
+          subtitle: const Text('Requer configuração Apple da aplicação'),
+          children: [
+            TextButton(onPressed: _busy ? null : () => _checkStatus(save: true), child: const Text('Guardar na pasta da aplicação')),
+            TextButton(onPressed: _busy ? null : () => _checkStatus(), child: const Text('Verificar envio dessa pasta')),
+            TextButton(onPressed: _busy ? null : () => _restore(), child: const Text('Recuperar dessa pasta')),
+          ]),
+        const Text('Guarde uma nova cópia depois de alterar os registos.',
           style: TextStyle(fontSize: 12)),
       ])),
       actions: [TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: const Text('Fechar'))],

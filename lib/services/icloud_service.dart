@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
@@ -28,7 +30,7 @@ class ICloudService {
 
   static Future<String> accountDescription() async {
     final info = await channel.invokeMapMethod<String, dynamic>('accountInfo');
-    if (info?['hasAccount'] != true) return 'Nenhuma conta com iCloud Drive ativo.';
+    if (info?['hasAccount'] != true) return 'O iOS não confirmou acesso ao iCloud desta aplicação. Pode escolher iCloud Drive em Ficheiros.';
     if (info?['hasStorage'] != true) return 'Conta iCloud detetada; a pasta da aplicação ainda não está disponível.';
     return 'Conta Apple deste iPhone — iCloud Drive ativo.';
   }
@@ -59,22 +61,50 @@ class ICloudService {
   static Future<void> backup() => _serial(() async {
     final identity = await account();
     if (identity == null) throw StateError('Ative o iCloud Drive nas Definições do iPhone.');
+    final content = await _backupContent();
+    await channel.invokeMethod<void>('write', {'account': identity, 'content': content});
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_icloud_backup', DateTime.now().toIso8601String());
+  });
+
+  static Future<String> _backupContent() async {
     final prefs = await SharedPreferences.getInstance();
     final entries = await DBHelper.instance.getAllEntries();
     final settings = <String, Object>{
       for (final key in prefs.getKeys())
         if (isBackupSetting(key)) key: prefs.get(key)!,
     };
-    await channel.invokeMethod<void>('write', {
-      'account': identity,
-      'content': jsonEncode({
+    return jsonEncode({
         'version': 1,
         'timestamp': DateTime.now().toUtc().toIso8601String(),
         'settings': settings,
         'entries': entries.map((e) => e.toMap()).toList(),
-      }),
-    });
-    await prefs.setString('last_icloud_backup', DateTime.now().toIso8601String());
+      });
+  }
+
+  /// Lets iOS grant access to the destination selected by the user, including
+  /// iCloud Drive, without relying on the app's own ubiquity container.
+  static Future<String?> saveViaFiles() => _serial(() async {
+    final content = await _backupContent();
+    final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    return FilePicker.platform.saveFile(
+      dialogTitle: 'Escolha iCloud Drive e toque em Guardar',
+      fileName: 'CCTV_Motorista_Backup_$stamp.json',
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+      bytes: Uint8List.fromList(utf8.encode(content)),
+    );
+  });
+
+  static Future<bool> restoreViaFiles() => _serial(() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom, allowedExtensions: ['json'], withData: true,
+    );
+    if (result == null) return false;
+    final picked = result.files.single;
+    final bytes = picked.bytes ?? await File(picked.path!).readAsBytes();
+    await _restoreContent(utf8.decode(bytes));
+    return true;
   });
 
   static Future<void> restore() => _serial(() async {
@@ -82,6 +112,10 @@ class ICloudService {
     if (identity == null) throw StateError('Ative o iCloud Drive nas Definições do iPhone.');
     final content = await channel.invokeMethod<String>('read', {'account': identity});
     if (content == null) throw StateError('Ainda não existe uma cópia de segurança no iCloud.');
+    await _restoreContent(content);
+  });
+
+  static Future<void> _restoreContent(String content) async {
     final data = jsonDecode(content);
     if (data is! Map || data['version'] != 1 || data['entries'] is! List || data['settings'] is! Map) {
       throw const FormatException('Cópia de segurança inválida.');
@@ -115,5 +149,5 @@ class ICloudService {
         await prefs.setString(item.key, item.value as String);
       }
     }
-  });
+  }
 }
