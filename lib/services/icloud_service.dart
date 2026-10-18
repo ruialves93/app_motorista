@@ -20,6 +20,20 @@ class ICloudService {
 
   static Future<String?> account() => channel.invokeMethod<String>('account');
 
+  static Future<String> backupStatus() async {
+    final identity = await account();
+    if (identity == null) return 'O iCloud Drive não está disponível nesta sessão.';
+    final status = await channel.invokeMapMethod<String, dynamic>('status', {'account': identity});
+    if (status == null) return 'Não foi possível verificar o envio.';
+    if (status['error'] is String) return 'O iCloud não conseguiu enviar a cópia: ${status['error']}';
+    if (status['exists'] != true) return 'Ainda não existe uma cópia nesta pasta iCloud.';
+    if (status['uploaded'] == true) {
+      return 'Envio para o iCloud confirmado pelo iOS. Ficheiro: CCTV_Motorista_Backup.json.';
+    }
+    if (status['uploading'] == true) return 'O iOS está a enviar a cópia para o iCloud. Toque em Verificar envio para atualizar.';
+    return 'Cópia gravada no dispositivo, mas o envio para o iCloud ainda não foi confirmado. Verifique a ligação e o iCloud Drive e toque em Verificar envio.';
+  }
+
   // Serializes backup and restore so an automatic save cannot overlap a restore.
   static Future<T> _serial<T>(Future<T> Function() work) {
     final operation = _pending.then((_) => work());

@@ -21,19 +21,22 @@ import CryptoKit
       // Establishing the ubiquity container can block; never do it on the UI thread.
       self.iCloudQueue.async {
         do {
-          guard let identity = try self.iCloudIdentity(),
-                let container = FileManager.default.url(
-                  forUbiquityContainerIdentifier: "iCloud.com.ruibarata.cctvmotorista"
-                ) else {
-            if call.method == "account" {
-              DispatchQueue.main.async { result(nil) }
-            } else {
-              DispatchQueue.main.async { result(FlutterError(
-                code: "icloud_unavailable",
-                message: "Ative o iCloud Drive nas Definições do iPhone. Se já está ativo, verifique a ligação e tente novamente.",
-                details: nil
-              )) }
-            }
+          guard let identity = try self.iCloudIdentity() else {
+            DispatchQueue.main.async { result(FlutterError(
+              code: "icloud_account_unavailable",
+              message: "Não foi encontrada uma conta com iCloud Drive ativo. Verifique Definições > Conta Apple > iCloud > iCloud Drive.",
+              details: nil
+            )) }
+            return
+          }
+          guard let container = FileManager.default.url(
+            forUbiquityContainerIdentifier: "iCloud.com.ruibarata.cctvmotorista"
+          ) else {
+            DispatchQueue.main.async { result(FlutterError(
+              code: "icloud_container_unavailable",
+              message: "A conta iCloud foi encontrada, mas o iOS não disponibilizou a pasta da aplicação. Pode faltar a configuração iCloud desta versão ou o serviço ainda não estar disponível no simulador.",
+              details: nil
+            )) }
             return
           }
           if call.method == "account" {
@@ -49,6 +52,24 @@ import CryptoKit
           let directory = container.appendingPathComponent("Documents", isDirectory: true)
           try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
           let file = directory.appendingPathComponent("CCTV_Motorista_Backup.json")
+          if call.method == "status" {
+            var status: [String: Any] = ["exists": FileManager.default.fileExists(atPath: file.path)]
+            if FileManager.default.fileExists(atPath: file.path) {
+              let values = try file.resourceValues(forKeys: [
+                .ubiquitousItemIsUploadedKey, .ubiquitousItemIsUploadingKey,
+                .ubiquitousItemUploadingErrorKey, .isUbiquitousItemKey
+              ])
+              status["uploaded"] = values.ubiquitousItemIsUploaded ?? false
+              status["uploading"] = values.ubiquitousItemIsUploading ?? false
+              status["ubiquitous"] = values.isUbiquitousItem ?? false
+              if let error = values.ubiquitousItemUploadingError {
+                status["error"] = error.localizedDescription
+              }
+            }
+            let response = status
+            DispatchQueue.main.async { result(response) }
+            return
+          }
           let coordinator = NSFileCoordinator(filePresenter: nil)
           var coordinationError: NSError?
           var operationError: Error?

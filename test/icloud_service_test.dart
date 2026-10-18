@@ -7,6 +7,25 @@ void main() {
   final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   tearDown(() => messenger.setMockMethodCallHandler(ICloudService.channel, null));
 
+  test('Only an uploaded backup is reported as confirmed in iCloud', () async {
+    var uploaded = false;
+    messenger.setMockMethodCallHandler(ICloudService.channel, (call) async {
+      if (call.method == 'account') return 'test-account';
+      return {'exists': true, 'uploaded': uploaded, 'uploading': false};
+    });
+    expect(await ICloudService.backupStatus(), contains('ainda não foi confirmado'));
+    uploaded = true;
+    expect(await ICloudService.backupStatus(), contains('Envio para o iCloud confirmado'));
+  });
+
+  test('Upload failures are shown to the user', () async {
+    messenger.setMockMethodCallHandler(ICloudService.channel, (call) async {
+      if (call.method == 'account') return 'test-account';
+      return {'exists': true, 'error': 'Sem espaço disponível'};
+    });
+    expect(await ICloudService.backupStatus(), contains('Sem espaço disponível'));
+  });
+
   test('Backup settings include monthly rates and exclude credentials', () {
     expect(ICloudService.isBackupSetting('base_salary_2026_10'), isTrue);
     expect(ICloudService.isBackupSetting('driver_name'), isTrue);

@@ -11,21 +11,37 @@ class ICloudBackupDialog extends StatefulWidget {
 class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
   bool _busy = false;
   String _message = 'Utiliza a conta iCloud das Definições do iPhone. Ative o iCloud Drive para guardar os seus registos e definições.';
+  bool _error = false;
 
   Future<void> _run(Future<void> Function() action, String message) async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _error = false;
+      _message = 'A comunicar com o iCloud…';
+    });
     try {
       await action();
-      if (mounted) setState(() => _message = message);
+      if (mounted && message.isNotEmpty) setState(() => _message = message);
     } catch (error) {
       if (mounted) {
-        setState(() => _message = error is PlatformException
-            ? error.message ?? 'Não foi possível aceder ao iCloud.'
-            : error.toString());
+        setState(() {
+          _error = true;
+          _message = error is PlatformException
+              ? error.message ?? 'Não foi possível aceder ao iCloud.'
+              : error.toString().replaceFirst('Bad state: ', '');
+        });
       }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _checkStatus({bool save = false}) async {
+    await _run(() async {
+      if (save) await ICloudService.backup();
+      final status = await ICloudService.backupStatus();
+      if (mounted) setState(() => _message = status);
+    }, '');
   }
 
   Future<void> _restore() async {
@@ -47,20 +63,31 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
     canPop: !_busy,
     child: AlertDialog(
       title: const Text('Cópia de segurança iCloud'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(_message),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _error ? Colors.red.shade50 : Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(_message, style: TextStyle(color: _error ? Colors.red.shade900 : Colors.blue.shade900)),
+        ),
         const SizedBox(height: 16),
-        if (_busy) const CircularProgressIndicator(),
+        if (_busy) const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: Column(children: [CircularProgressIndicator(), SizedBox(height: 8), Text('Aguarde…')]),
+        ),
         ElevatedButton.icon(
-          onPressed: _busy ? null : () => _run(ICloudService.backup,
-              'Cópia guardada na pasta iCloud da aplicação. O envio é gerido pelo iOS quando existe ligação.'),
+          onPressed: _busy ? null : () => _checkStatus(save: true),
           icon: const Icon(Icons.cloud_upload), label: const Text('Guardar no iCloud'),
         ),
+        TextButton.icon(onPressed: _busy ? null : () => _checkStatus(),
+          icon: const Icon(Icons.refresh), label: const Text('Verificar envio')),
         TextButton.icon(onPressed: _busy ? null : _restore,
           icon: const Icon(Icons.cloud_download), label: const Text('Recuperar do iCloud')),
         const Text('Guarde uma nova cópia depois de alterar os registos. A cópia anterior será substituída.',
           style: TextStyle(fontSize: 12)),
-      ]),
+      ])),
       actions: [TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: const Text('Fechar'))],
     ),
   );
