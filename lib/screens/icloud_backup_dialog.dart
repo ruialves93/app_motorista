@@ -12,6 +12,7 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
   bool _busy = false;
   String _message = 'Utiliza a conta iCloud das Definições do iPhone. Ative o iCloud Drive para guardar os seus registos e definições.';
   bool _error = false;
+  bool _success = false;
   String _account = 'A verificar a conta iCloud…';
 
   @override
@@ -33,6 +34,7 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
     setState(() {
       _busy = true;
       _error = false;
+      _success = false;
       _message = 'A comunicar com o iCloud…';
     });
     try {
@@ -56,8 +58,13 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
   Future<void> _checkStatus({bool save = false}) async {
     await _run(() async {
       if (save) await ICloudService.backup();
-      final status = await ICloudService.backupStatus();
-      if (mounted) setState(() => _message = status);
+      final status = await ICloudService.backupStatusDetails();
+      if (mounted) {
+        setState(() {
+          _message = status.message;
+          _success = status.confirmed;
+        });
+      }
     }, '');
   }
 
@@ -91,10 +98,15 @@ class _ICloudBackupDialogState extends State<ICloudBackupDialog> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _error ? Colors.red.shade50 : Colors.blue.shade50,
+            color: _error ? Colors.red.shade50 : _success ? Colors.green.shade50 : Colors.blue.shade50,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(_message, style: TextStyle(color: _error ? Colors.red.shade900 : Colors.blue.shade900)),
+          child: Column(children: [
+            Icon(_error ? Icons.error_outline : _success ? Icons.check_circle : Icons.info_outline,
+              color: _error ? Colors.red : _success ? Colors.green : Colors.blue),
+            const SizedBox(height: 8),
+            Text(_message, style: TextStyle(color: _error ? Colors.red.shade900 : _success ? Colors.green.shade900 : Colors.blue.shade900)),
+          ]),
         ),
         const SizedBox(height: 16),
         if (_busy) const Padding(

@@ -5,6 +5,12 @@ import 'package:sqflite/sqflite.dart';
 import '../models/driver_entry.dart';
 import 'db_helper.dart';
 
+class ICloudBackupStatus {
+  const ICloudBackupStatus(this.message, {this.confirmed = false});
+  final String message;
+  final bool confirmed;
+}
+
 class ICloudService {
   static const channel = MethodChannel('com.ruibarata.cctvmotorista/icloud');
   static const _settings = [
@@ -27,18 +33,20 @@ class ICloudService {
     return 'Conta Apple deste iPhone — iCloud Drive ativo.';
   }
 
-  static Future<String> backupStatus() async {
+  static Future<String> backupStatus() async => (await backupStatusDetails()).message;
+
+  static Future<ICloudBackupStatus> backupStatusDetails() async {
     final identity = await account();
-    if (identity == null) return 'O iCloud Drive não está disponível nesta sessão.';
+    if (identity == null) return const ICloudBackupStatus('O iCloud Drive não está disponível nesta sessão.');
     final status = await channel.invokeMapMethod<String, dynamic>('status', {'account': identity});
-    if (status == null) return 'Não foi possível verificar o envio.';
-    if (status['error'] is String) return 'O iCloud não conseguiu enviar a cópia: ${status['error']}';
-    if (status['exists'] != true) return 'Ainda não existe uma cópia nesta pasta iCloud.';
+    if (status == null) return const ICloudBackupStatus('Não foi possível verificar o envio.');
+    if (status['error'] is String) return ICloudBackupStatus('O iCloud não conseguiu enviar a cópia: ${status['error']}');
+    if (status['exists'] != true) return const ICloudBackupStatus('Ainda não existe uma cópia nesta pasta iCloud.');
     if (status['uploaded'] == true) {
-      return 'Envio para o iCloud confirmado pelo iOS. Ficheiro: CCTV_Motorista_Backup.json.';
+      return const ICloudBackupStatus('Cópia de segurança efetuada com sucesso no iCloud. Envio para o iCloud confirmado pelo iOS. Ficheiro: CCTV_Motorista_Backup.json.', confirmed: true);
     }
-    if (status['uploading'] == true) return 'O iOS está a enviar a cópia para o iCloud. Toque em Verificar envio para atualizar.';
-    return 'Cópia gravada no dispositivo, mas o envio para o iCloud ainda não foi confirmado. Verifique a ligação e o iCloud Drive e toque em Verificar envio.';
+    if (status['uploading'] == true) return const ICloudBackupStatus('O iOS está a enviar a cópia para o iCloud. Toque em Verificar envio para atualizar.');
+    return const ICloudBackupStatus('Cópia gravada no dispositivo, mas o envio para o iCloud ainda não foi confirmado. Verifique a ligação e o iCloud Drive e toque em Verificar envio.');
   }
 
   // Serializes backup and restore so an automatic save cannot overlap a restore.
