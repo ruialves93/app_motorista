@@ -13,6 +13,16 @@ class UpdateService {
 
   static Future<void> checkForUpdates(BuildContext context,
       {bool showNoUpdateMessage = false}) async {
+    if (!Platform.isAndroid) {
+      if (showNoUpdateMessage && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+            'No iPhone e iPad, as atualizações são disponibilizadas pela App Store ou TestFlight.',
+          )),
+        );
+      }
+      return;
+    }
     try {
       final response = await http
           .get(Uri.parse(versionUrl))

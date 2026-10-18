@@ -30,6 +30,7 @@ class CloudService {
   );
 
   static Future<GoogleSignInAccount?> signInGoogle() async {
+    if (Platform.isIOS) return null;
     try {
       final account = await _googleSignIn.signIn();
       if (account != null) {
@@ -52,6 +53,7 @@ class CloudService {
   }
 
   static Future<drive.DriveApi?> _getDriveApi() async {
+    if (Platform.isIOS) return null;
     try {
       GoogleSignInAccount? account = _googleSignIn.currentUser;
       account ??= await _googleSignIn.signInSilently();

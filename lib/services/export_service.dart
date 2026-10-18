@@ -14,6 +14,7 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/driver_entry.dart';
 import 'db_helper.dart';
+import 'share_service.dart';
 
 class ExportService {
   static String formatDuration(double decimalHours) {
@@ -585,7 +586,7 @@ class ExportService {
                 final file = File('${tempDir.path}/$fileName');
                 await file.writeAsBytes(pdfBytes);
 
-                await Share.shareXFiles([XFile(file.path)], text: 'Folha de Serviço CCTV ANTROP - $driverName ($periodTitle)');
+                await ShareService.shareXFiles([XFile(file.path)], text: 'Folha de Serviço CCTV ANTROP - $driverName ($periodTitle)');
               },
             ),
           ],
@@ -877,7 +878,7 @@ class ExportService {
                 subtitle: const Text('Enviar via WhatsApp, E-mail ou Drive'),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  await Share.shareXFiles(
+                  await ShareService.shareXFiles(
                     [XFile(tempFile.path)],
                     text: 'Mapa Excel CCTV - $driverName ($periodTitle)',
                   );
@@ -1108,7 +1109,7 @@ class ExportService {
                 final file = File('${tempDir.path}/$fileName');
                 await file.writeAsBytes(pdfBytes);
 
-                await Share.shareXFiles([XFile(file.path)], text: 'Tabela de Valores de Referência CCTV ANTROP - $driverName');
+                await ShareService.shareXFiles([XFile(file.path)], text: 'Tabela de Valores de Referência CCTV ANTROP - $driverName');
               },
             ),
           ],
@@ -1359,7 +1360,7 @@ class ExportService {
                   final file = File('${tempDir.path}/$fileName');
                   await file.writeAsBytes(pdfBytes);
 
-                  await Share.shareXFiles(
+                  await ShareService.shareXFiles(
                     [XFile(file.path)],
                     text: 'Registo de Viaturas - $driverName ($periodTitle)',
                   );
@@ -1724,7 +1725,7 @@ class ExportService {
                   final file = File('${tempDir.path}/$fileName');
                   await file.writeAsBytes(pdfBytes);
 
-                  await Share.shareXFiles(
+                  await ShareService.shareXFiles(
                     [XFile(file.path)],
                     text: 'Mapa Anual de Férias $year - $driverName',
                   );
@@ -1757,7 +1758,7 @@ class ExportService {
     final file = File('${tempDir.path}/CCTV_Motorista_Backup.json');
     await file.writeAsString(data);
 
-    await Share.shareXFiles([XFile(file.path)], text: 'Cópia de Segurança Local CCTV Motorista');
+    await ShareService.shareXFiles([XFile(file.path)], text: 'Cópia de Segurança Local CCTV Motorista');
   }
 
   static Future<bool> importBackupJSON() async {
@@ -1944,7 +1945,7 @@ class ExportService {
                   final file = File('${tempDir.path}/$fileName');
                   await file.writeAsBytes(pdfBytes);
 
-                  await Share.shareXFiles(
+                  await ShareService.shareXFiles(
                     [XFile(file.path)],
                     text: 'Manual do Utilizador - Aplicação CCTV Motorista',
                   );
@@ -1967,6 +1968,14 @@ class ExportService {
   // 8. RECOMENDAR APLICAÇÃO A OUTROS (LINK PÚBLICO DIRETO)
   // ==========================================
   static Future<void> shareAppRecommendation() async {
+    if (Platform.isIOS) {
+      await ShareService.share(
+        'Experimente o CCTV Motorista para gerir horários, turnos e relatórios. '
+        'Peça ao responsável pela aplicação o acesso à versão iOS na App Store ou no TestFlight.',
+        subject: 'CCTV Motorista para iOS',
+      );
+      return;
+    }
     const String directDownloadUrl = 'https://github.com/ruialves93/app_motorista/releases/latest/download/app-release.apk';
 
     const String shareText = 
@@ -1974,7 +1983,7 @@ class ExportService {
         'Podes descarregar e instalar a aplicação diretamente através deste link público:\n'
         '$directDownloadUrl';
 
-    await Share.share(
+    await ShareService.share(
       shareText,
       subject: 'Recomendação: Aplicação CCTV Motorista',
     );

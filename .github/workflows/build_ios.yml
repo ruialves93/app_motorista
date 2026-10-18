@@ -1,0 +1,47 @@
+name: Build Flutter iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'codex/ios-appetize'
+    tags:
+      - 'v*'
+
+jobs:
+  simulator:
+    name: Build virtual iPhone app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --simulator --debug
+      - name: Package for browser simulator
+        working-directory: build/ios/iphonesimulator
+        run: ditto -c -k --sequesterRsrc --keepParent Runner.app cctv-motorista-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cctv-motorista-ios-simulator
+          path: build/ios/iphonesimulator/cctv-motorista-simulator.zip
+          if-no-files-found: error
+  build:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          cache: true
+      - run: flutter pub get
+      - name: Build iOS without signing
+        run: flutter build ios --release --no-codesign
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cctv-motorista-ios-unsigned
+          path: build/ios/iphoneos/Runner.app
+          if-no-files-found: error

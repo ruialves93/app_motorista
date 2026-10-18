@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'screens/icloud_backup_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:ntp/ntp.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -143,7 +145,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
     super.initState();
     _loadGlobalPreferences();
     _loadMonthRatesAndEntries();
-    CloudService.checkAndRunDailySync();
+    if (!Platform.isIOS) CloudService.checkAndRunDailySync();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateService.checkForUpdates(context);
@@ -162,6 +164,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
   }
 
   void _triggerAutoCloudSync() {
+    if (Platform.isIOS) return;
     if (accountEmail.isNotEmpty) {
       CloudService.uploadOrReplaceBackupOnDrive();
     }
@@ -174,7 +177,7 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
       driverNif = prefs.getString('driver_nif') ?? '';
       companyName = prefs.getString('company_name') ?? '';
       companyNif = prefs.getString('company_nif') ?? '';
-      accountEmail = prefs.getString('google_account_email') ?? '';
+      accountEmail = Platform.isIOS ? '' : prefs.getString('google_account_email') ?? '';
       isAppLockEnabled = prefs.getBool('app_lock_enabled') ?? false;
       driverType = prefs.getString('driver_type') ?? 'Publico';
     });
@@ -727,8 +730,8 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
           ),
           ListTile(
             leading: Icon(Icons.cloud_sync, color: accountEmail.isNotEmpty ? Colors.teal : Colors.blueGrey),
-            title: const Text('Google Drive (Backup Automático)'),
-            subtitle: Text(accountEmail.isEmpty ? 'Toque para ligar conta Google' : 'Ligado: $accountEmail (Auto-Sync Ativo)'),
+            title: Text(Platform.isIOS ? 'iCloud (Cópia de Segurança)' : 'Google Drive (Backup Automático)'),
+            subtitle: Text(Platform.isIOS ? 'Guardar ou recuperar com a conta Apple' : accountEmail.isEmpty ? 'Toque para ligar conta Google' : 'Ligado: $accountEmail (Auto-Sync Ativo)'),
             onTap: () {
               Navigator.pop(context);
               _openCloudDialog();
@@ -973,6 +976,16 @@ class _DriverCCTVAppState extends State<DriverCCTVApp> {
   }
 
   void _openCloudDialog() {
+    if (Platform.isIOS) {
+      showDialog<void>(context: context, barrierDismissible: false,
+        builder: (_) => const ICloudBackupDialog()).then((_) async {
+          if (!mounted) return;
+          await _loadGlobalPreferences();
+          if (!mounted) return;
+          await _loadMonthRatesAndEntries();
+        });
+      return;
+    }
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
