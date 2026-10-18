@@ -83,3 +83,19 @@ Executar flutter analyze e flutter test. Antes de distribuir, testar num iPhone
 e iPad: turnos, persistência, Face ID/PIN, PDF/Excel, guardar em Ficheiros,
 partilha e backup/restauro iCloud, incluindo ausência de rede e troca de conta.
 A compilação Xcode e a integração iCloud não foram verificadas no Windows.
+
+## Backups visíveis através de Ficheiros
+
+Na versão iOS de teste, o caminho recomendado é Guardar em Ficheiros. No seletor
+nativo, escolher iCloud Drive, uma pasta e Guardar. A aplicação exporta um JSON
+com registos e definições gerais/mensais, sem o PIN ou credenciais. O iOS confirma
+a exportação para o destino escolhido; o envio remoto é gerido pelo fornecedor
+Ficheiros. A aplicação não apresenta essa exportação como prova de envio ao servidor.
+
+Para recuperar, utilizar Recuperar de Ficheiros e selecionar o JSON guardado.
+O restauro pede confirmação antes de substituir registos coincidentes e definições.
+Os nomes de exportação incluem a data/hora para manter cópias diferentes.
+
+O acesso à pasta própria da aplicação fica numa secção adicional e depende da
+configuração do contentor Apple. A ausência de acesso a esse contentor não impede
+exportar para um destino disponibilizado pelo seletor Ficheiros do iOS.
